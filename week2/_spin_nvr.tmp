@@ -1,0 +1,9 @@
+never solved {    /* !(! (<> ((((((((state[0]==2)) && ((state[1]==2))) && ((state[2]==2))) && ((state[3]==0))) && ((state[4]==1))) && ((state[5]==1))) && ((state[6]==1))))) */
+T0_init:
+	do
+	:: atomic { (((((((((state[0]==2)) && ((state[1]==2))) && ((state[2]==2))) && ((state[3]==0))) && ((state[4]==1))) && ((state[5]==1))) && ((state[6]==1)))) -> assert(!(((((((((state[0]==2)) && ((state[1]==2))) && ((state[2]==2))) && ((state[3]==0))) && ((state[4]==1))) && ((state[5]==1))) && ((state[6]==1))))) }
+	:: (1) -> goto T0_init
+	od;
+accept_all:
+	skip
+}

@@ -1,0 +1,9 @@
+never mutex {    /* !([] (! (((P@csp)) && ((Q@csq))))) */
+T0_init:
+	do
+	:: atomic { (! ((! (((P@csp)) && ((Q@csq)))))) -> assert(!(! ((! (((P@csp)) && ((Q@csq))))))) }
+	:: (1) -> goto T0_init
+	od;
+accept_all:
+	skip
+}
