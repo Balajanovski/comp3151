@@ -29,7 +29,7 @@ public class SortedArray {
 
         this.size_semaphore.acquire();
 
-        this.cleanup();
+        //this.cleanup();
 
         // Two phase solution
         // Phase 1: Find insertion location (write locks) (Potentially look at ReadWriteUpdate lock)
