@@ -1,25 +1,31 @@
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Stream;
 
 public class SortedArray {
     private final int N;
     private int[] values;
-    private int size;
+    private AtomicInteger size;
 
-    private ReadWriteLock[] rw_locks;
+    private Lock[] mutation_locks;
+    private Lock[] read_locks;
     private Semaphore size_semaphore;
 
     public SortedArray(int N) {
         this.N = N;
         this.size_semaphore = new Semaphore(N);
-        this.size = 0;
+        this.size = new AtomicInteger(0);
         this.values = new int[N+2];
-        this.rw_locks = Stream.iterate(0, x->x+1)
+        this.mutation_locks = Stream.iterate(0, x->x+1)
                 .limit(N+2)
-                .map(i -> new ReentrantReadWriteLock())
-                .toArray(ReadWriteLock[]::new);
+                .map(i -> new ReentrantLock())
+                .toArray(ReentrantLock[]::new);
+        this.read_locks = Stream.iterate(0, x->x+1)
+                .limit(N+2)
+                .map(i -> new ReentrantLock())
+                .toArray(ReentrantLock[]::new);
         this.values[0] = Integer.MIN_VALUE;
         this.values[1] = Integer.MAX_VALUE;
     }
@@ -37,27 +43,27 @@ public class SortedArray {
 
         // Hand over hand locking
         int insertion_pos = -1; // Value of -1 means that an insertion position has not been found
-        this.rw_locks[0].writeLock().lock();
-        for (int i = 1; i < N+2 && insertion_pos == -1; ++i) {
-            this.rw_locks[i].writeLock().lock();
+        this.mutation_locks[0].lock();
+        for (int i = 1; i < N+1 && insertion_pos == -1; ++i) {
+            this.mutation_locks[i].lock();
 
             if (this.values[i] == x) {
-                this.rw_locks[i-1].writeLock().unlock();
-                this.rw_locks[i].writeLock().unlock();
+                this.mutation_locks[i-1].unlock();
+                this.mutation_locks[i].unlock();
                 return;
             } else if (Math.abs(this.values[i]) > x) {
                 insertion_pos = i;
                 break;
             }
 
-            this.rw_locks[i-1].writeLock().unlock();
+            this.mutation_locks[i-1].unlock();
         }
 
         if (insertion_pos == -1) {
             // Safely unlock. However, if a process ever gets here
             // something has gone DREADFULLY wrong
             // TODO: Check this never happens
-            this.rw_locks[N+1].writeLock().unlock();
+            this.mutation_locks[N+1].unlock();
             return;
         }
 
@@ -65,150 +71,71 @@ public class SortedArray {
         // TODO: Validate it
 
         // Lock the right of the array
+        // till the first zero
+        int lock_end = N+1;
         for (int i = insertion_pos+1; i < N+2; ++i) {
-            this.rw_locks[i].writeLock().lock();
+            this.mutation_locks[i].lock();
+
+            if (this.values[i] < 0) {
+                lock_end = i;
+                break;
+            }
         }
 
         // Insert x into desired position
-        for (int i = insertion_pos; i < N+2; ++i) {
-            int temp = this.values[i];
-            this.values[i] = x;
-            x = temp;
+        for (int i = lock_end; i >= insertion_pos+1; --i) {
+            this.read_locks[i-1].lock();
+            this.read_locks[i].lock();
+
+            int temp = this.values[i-1];
+            this.values[i-1] = this.values[i];
+            this.values[i] = temp;
+
+            this.read_locks[i-1].unlock();
+            this.read_locks[i].unlock();
         }
+
+        assert(this.values[insertion_pos] < 0);
+        this.values[insertion_pos] = x;
 
         // Update size
-        ++this.size;
+        this.size.addAndGet(1);
 
         // Unlock the array
-        for (int i = insertion_pos-1; i < N+2; ++i) {
-            this.rw_locks[i].writeLock().unlock();
+        for (int i = insertion_pos-1; i <= lock_end; ++i) {
+            this.mutation_locks[i].unlock();
         }
+    }
+
+    public int get_size() {
+        return size.get();
     }
 
     public void delete(int x) {
         assert (x > 0);
 
-        int low = 0;
-
-        this.rw_locks[N+1].readLock().lock();
-        // Ensure that size is not modified
-        int high = this.size-1;
-        this.rw_locks[high].writeLock().lock(); // Write, not read lock
-        this.rw_locks[N+1].readLock().unlock();
-
-        while (low <= high) {
-            int mid = low + (high - low) / 2;
-
-            if (this.values[mid] < 0) {
-                boolean found_positive = false;
-                for (int i = mid+1; i <= high; ++i) {
-                    if (this.values[i] > 0) {
-                        found_positive = true;
-                        mid = i;
-                        break;
-                    }
-                }
-
-                if (!found_positive) {
-                    for (int i = mid-1; i >= low; --i) {
-                        if (this.values[i] > 0) {
-                            found_positive = true;
-                            mid = i;
-                            break;
-                        }
-                    }
-                }
-
-                if (!found_positive) {
-                    break;
-                }
-            }
-
-            if (this.values[mid] < x) {
-                low = mid+1;
-            } else if (this.values[mid] > x) {
-                // Hand over hand locking
-                // Allow mutations to the right of the search
-
-                this.rw_locks[mid-1].writeLock().lock();
-                this.rw_locks[high].writeLock().unlock();
-
-                high = mid-1;
-            } else {
-                this.values[mid] = -this.values[mid];
-                break;
-            }
-        }
-
-        this.rw_locks[high].writeLock().unlock();
         this.size_semaphore.release();
     }
 
     public boolean member(int x) {
+        // -1 encodes a deleted member
+        // 0 encodes array padding
+
         int low = 0;
+        int high = N-1;
 
-        this.rw_locks[N+1].readLock().lock();
-        // Ensure that size is not modified
-        int high = this.size-1;
-        this.rw_locks[high].readLock().lock();
-        this.rw_locks[N+1].readLock().unlock();
-
-        boolean found_x = false;
         while (low <= high) {
             int mid = low + (high - low) / 2;
-
-            if (this.values[mid] < 0) {
-                boolean found_positive = false;
-                for (int i = mid+1; i <= high; ++i) {
-                    if (this.values[i] > 0) {
-                        found_positive = true;
-                        mid = i;
-                        break;
-                    }
-                }
-
-                if (!found_positive) {
-                    for (int i = mid-1; i >= low; --i) {
-                        if (this.values[i] > 0) {
-                            found_positive = true;
-                            mid = i;
-                            break;
-                        }
-                    }
-                }
-
-                if (!found_positive) {
-                    break;
-                }
-            }
-
-            if (this.values[mid] < x) {
-                low = mid+1;
-            } else if (this.values[mid] > x) {
-                // Hand over hand locking
-                // Allow mutations to the right of the search
-
-                this.rw_locks[mid-1].readLock().lock();
-                this.rw_locks[high].readLock().unlock();
-
-                high = mid-1;
-            } else {
-                found_x = true;
-                break;
-            }
         }
-
-        this.rw_locks[high].readLock().unlock();
-        return found_x;
     }
 
     public void print_sorted() {
-        this.rw_locks[0].readLock().lock();
+        this.read_locks[0].lock();
         for (int i = 1; i < N+2; ++i) {
-            this.rw_locks[i].readLock().lock();
+            this.read_locks[i].lock();
             if (values[i] == Integer.MAX_VALUE) {
-                this.rw_locks[i-1].readLock().unlock();
-                this.rw_locks[i].readLock().unlock();
+                this.read_locks[i-1].unlock();
+                this.read_locks[i].unlock();
                 return;
             }
 
@@ -216,38 +143,12 @@ public class SortedArray {
                 System.out.println(values[i]);
             }
 
-            this.rw_locks[i-1].readLock().unlock();
+            this.read_locks[i-1].unlock();
         }
-        this.rw_locks[N+1].readLock().unlock();
+        this.read_locks[N+1].unlock();
     }
 
     public void cleanup() {
-        this.rw_locks[0].writeLock().lock();
-        for (int i = 1; i < N+2; ++i) {
-            this.rw_locks[i].writeLock().lock();
 
-            if (this.values[i] < 0) {
-                for (int j = i+1; j < N+2; ++j) {
-                    this.rw_locks[j].writeLock().lock();
-                }
-
-                int insert_pos = i;
-                for (int j = i+1; j < N+2; ++j) {
-                    if (this.values[j] > 0) {
-                        this.values[insert_pos] = this.values[j];
-                        ++insert_pos;
-                    }
-                }
-                for (int j = insert_pos; j < N+2; ++j) {
-                    this.values[j] = 0;
-                }
-
-                for (int j = i+1; j < N+2; ++j) {
-                    this.rw_locks[j].writeLock().unlock();
-                }
-            }
-
-            this.rw_locks[i-1].writeLock().unlock();
-        }
     }
 }
