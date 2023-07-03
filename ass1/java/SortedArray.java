@@ -13,7 +13,7 @@ public class SortedArray {
     private AtomicInteger size;
 
     private Lock[] insert_region_locks;
-    private ReadWriteLock[] swap_locks;
+    private Lock[] swap_locks;
     private Semaphore size_semaphore;
 
     public SortedArray(int N) {
@@ -27,8 +27,8 @@ public class SortedArray {
                 .toArray(ReentrantLock[]::new);
         this.swap_locks = Stream.iterate(0, x->x+1)
                 .limit(N+2)
-                .map(i -> new ReentrantReadWriteLock())
-                .toArray(ReentrantReadWriteLock[]::new);
+                .map(i -> new ReentrantLock())
+                .toArray(ReentrantLock[]::new);
         this.values[0] = Integer.MIN_VALUE;
         this.values[1] = Integer.MAX_VALUE;
     }
@@ -98,10 +98,10 @@ public class SortedArray {
             // Read priority. However, this can lead to write starvation.
             boolean lock_acquired = false;
             while (!lock_acquired) {
-                if (!this.swap_locks[i-1].writeLock().tryLock()) {
+                if (!this.swap_locks[i-1].tryLock()) {
                     continue;
-                } if (!this.swap_locks[i].writeLock().tryLock()) {
-                    this.swap_locks[i-1].writeLock().unlock();
+                } if (!this.swap_locks[i].tryLock()) {
+                    this.swap_locks[i-1].unlock();
                     continue;
                 }
 
@@ -112,8 +112,8 @@ public class SortedArray {
             this.values[i-1] = this.values[i];
             this.values[i] = temp;
 
-            this.swap_locks[i-1].writeLock().unlock();
-            this.swap_locks[i].writeLock().unlock();
+            this.swap_locks[i-1].unlock();
+            this.swap_locks[i].unlock();
         }
 
         assert(this.values[region_left] == -1);
@@ -146,14 +146,14 @@ public class SortedArray {
         // Locking left and right of binary search prevents
         // swaps travelling over a binary search region
         // invalidating it
-        this.swap_locks[low].readLock().lock();
-        this.swap_locks[high].readLock().lock();
+        this.swap_locks[low].lock();
+        this.swap_locks[high].lock();
 
         while (low <= high) {
             int mid = low + (high - low) / 2;
 
             // Lock to ensure that the value to potentially be deleted doesn't change
-            this.swap_locks[mid].writeLock().lock();
+            this.swap_locks[mid].lock();
             int mid_value = this.values[mid];
 
             if (mid_value == -1) {
@@ -161,8 +161,8 @@ public class SortedArray {
                 boolean found_mid = false;
                 int currently_locked = mid;
                 for (int i = mid+1; i <= high; ++i) {
-                    this.swap_locks[i].writeLock().lock();
-                    this.swap_locks[currently_locked].writeLock().unlock();
+                    this.swap_locks[i].lock();
+                    this.swap_locks[currently_locked].unlock();
                     currently_locked = i;
 
                     mid_value = this.values[i];
@@ -181,8 +181,8 @@ public class SortedArray {
                 // Search left if not found a "midpoint"
                 if (!found_mid) {
                     for (int i = mid-1; i >= low; --i) {
-                        this.swap_locks[i].writeLock().lock();
-                        this.swap_locks[currently_locked].writeLock().unlock();
+                        this.swap_locks[i].lock();
+                        this.swap_locks[currently_locked].unlock();
                         currently_locked = i;
 
                         mid_value = this.values[i];
@@ -196,30 +196,30 @@ public class SortedArray {
                 }
 
                 if (!found_mid) {
-                    this.swap_locks[currently_locked].writeLock().unlock();
+                    this.swap_locks[currently_locked].unlock();
                     break;
                 }
             }
 
             if (mid_value == 0 || mid_value > x) {
-                this.swap_locks[mid-1].readLock().lock();
-                this.swap_locks[high].readLock().unlock();
-                this.swap_locks[mid].writeLock().unlock();
+                this.swap_locks[mid-1].lock();
+                this.swap_locks[high].unlock();
+                this.swap_locks[mid].unlock();
                 high = mid-1;
             } else if (mid_value < x) {
-                this.swap_locks[mid+1].readLock().lock();
-                this.swap_locks[low].readLock().unlock();
-                this.swap_locks[mid].writeLock().unlock();
+                this.swap_locks[mid+1].lock();
+                this.swap_locks[low].unlock();
+                this.swap_locks[mid].unlock();
                 low = mid+1;
             } else {
                 this.values[mid] = -1;
-                this.swap_locks[mid].writeLock().unlock();
+                this.swap_locks[mid].unlock();
                 break;
             }
         }
 
-        this.swap_locks[low].readLock().unlock();
-        this.swap_locks[high].readLock().unlock();
+        this.swap_locks[low].unlock();
+        this.swap_locks[high].unlock();
 
         this.size_semaphore.release();
         this.size.addAndGet(-1);
@@ -236,14 +236,14 @@ public class SortedArray {
         // Locking left and right of binary search prevents
         // swaps travelling over a binary search region
         // invalidating it
-        this.swap_locks[low].readLock().lock();
-        this.swap_locks[high].readLock().lock();
+        this.swap_locks[low].lock();
+        this.swap_locks[high].lock();
 
         while (low <= high) {
             int mid = low + (high - low) / 2;
 
             // Lock ensures that swaps are atomic
-            this.swap_locks[mid].readLock().lock();
+            this.swap_locks[mid].lock();
             int mid_value = this.values[mid];
 
             if (mid_value == -1) {
@@ -251,8 +251,8 @@ public class SortedArray {
                 boolean found_mid = false;
                 int currently_locked = mid;
                 for (int i = mid+1; i <= high; ++i) {
-                    this.swap_locks[i].readLock().lock();
-                    this.swap_locks[currently_locked].readLock().unlock();
+                    this.swap_locks[i].lock();
+                    this.swap_locks[currently_locked].unlock();
                     currently_locked = i;
 
                     mid_value = this.values[i];
@@ -271,8 +271,8 @@ public class SortedArray {
                 // Search left if not found a "midpoint"
                 if (!found_mid) {
                     for (int i = mid-1; i >= low; --i) {
-                        this.swap_locks[i].readLock().lock();
-                        this.swap_locks[currently_locked].readLock().unlock();
+                        this.swap_locks[i].lock();
+                        this.swap_locks[currently_locked].unlock();
                         currently_locked = i;
 
                         mid_value = this.values[i];
@@ -286,23 +286,23 @@ public class SortedArray {
                 }
 
                 if (!found_mid) {
-                    this.swap_locks[currently_locked].readLock().unlock();
+                    this.swap_locks[currently_locked].unlock();
                     break;
                 }
             }
 
             if (mid_value == 0 || mid_value > x) {
-                this.swap_locks[mid-1].readLock().lock();
-                this.swap_locks[high].readLock().unlock();
-                this.swap_locks[mid].readLock().unlock();
+                this.swap_locks[mid-1].lock();
+                this.swap_locks[high].unlock();
+                this.swap_locks[mid].unlock();
                 high = mid-1;
             } else if (mid_value < x) {
-                this.swap_locks[mid+1].readLock().lock();
-                this.swap_locks[low].readLock().unlock();
-                this.swap_locks[mid].readLock().unlock();
+                this.swap_locks[mid+1].lock();
+                this.swap_locks[low].unlock();
+                this.swap_locks[mid].unlock();
                 low = mid+1;
             } else {
-                this.swap_locks[mid].readLock().unlock();
+                this.swap_locks[mid].unlock();
 
                 // Possible interleaving where element gets deleted here
                 // This is ok according to the assignment spec
@@ -312,19 +312,19 @@ public class SortedArray {
             }
         }
 
-        this.swap_locks[low].readLock().unlock();
-        this.swap_locks[high].readLock().unlock();
+        this.swap_locks[low].unlock();
+        this.swap_locks[high].unlock();
 
         return found_member;
     }
 
     public void print_sorted() {
-        this.swap_locks[0].readLock().lock();
+        this.swap_locks[0].lock();
         for (int i = 1; i < N+2; ++i) {
-            this.swap_locks[i].readLock().lock();
+            this.swap_locks[i].lock();
             if (values[i] == Integer.MAX_VALUE) {
-                this.swap_locks[i-1].readLock().unlock();
-                this.swap_locks[i].readLock().unlock();
+                this.swap_locks[i-1].unlock();
+                this.swap_locks[i].unlock();
                 return;
             }
 
@@ -332,9 +332,9 @@ public class SortedArray {
                 System.out.println(values[i]);
             }
 
-            this.swap_locks[i-1].readLock().unlock();
+            this.swap_locks[i-1].unlock();
         }
-        this.swap_locks[N+1].readLock().unlock();
+        this.swap_locks[N+1].unlock();
     }
 
     public void cleanup() {
