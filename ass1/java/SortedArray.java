@@ -58,7 +58,7 @@ public class SortedArray {
                 this.size_semaphore.release();
 
                 return;
-            } else if (this.values[i] > x || this.values[i] <= 0) {
+            } else if (this.values[i] > x) {
                 region_left = i;
                 break;
             }
@@ -214,9 +214,6 @@ public class SortedArray {
             } else {
                 this.values[mid] = -1;
                 this.swap_locks[mid].writeLock().unlock();
-
-
-
                 break;
             }
         }
