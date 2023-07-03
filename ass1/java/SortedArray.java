@@ -121,12 +121,52 @@ public class SortedArray {
         // -1 encodes a deleted member
         // 0 encodes array padding
 
-        int low = 0;
-        int high = N-1;
+        int lowIndex = 0;
+        int highIndex = N-1;
+        boolean isMember = false;
+        int midIndex = lowIndex + (highIndex - lowIndex) / 2;
+        int nextMid = 0;
+        while (lowIndex <= highIndex) {
 
-        while (low <= high) {
-            int mid = low + (high - low) / 2;
+            if(this.read_locks[midIndex].tryLock()) { //reduce locked time if possible
+                try {
+                    int midValue = this.values[midIndex];
+                    if(lowIndex == highIndex) { // end of search
+                        isMember = (midValue == x);
+                        break;
+                    }
+                    if(midValue > 0) {
+                        if(x == midValue) {
+                            isMember = true;
+                            break;
+                        }
+                        else if(x < midValue) { //search target is smaller than mid
+                            highIndex = midIndex - 1;
+                        }
+                        else{ //search target is larger than mid
+                            lowIndex = midIndex + 1 ;
+                        }
+                        nextMid = lowIndex + (highIndex - lowIndex) / 2;
+                    }
+                    else if(midValue == 0){
+                        //something has gone wrong
+                        //todo make sure this never happens
+                        nextMid = midIndex - 1;
+                    }
+                    else { //midValue is negative
+                        nextMid = midIndex + 1;
+                    }
+
+                } finally {
+                    this.read_locks[midIndex].unlock();
+                    midIndex = nextMid;
+                }
+            }
+            else {
+                //cry???
+            }   
         }
+        return isMember;
     }
 
     public void print_sorted() {
