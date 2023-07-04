@@ -163,7 +163,9 @@ public class SortedArray {
             return true;
         } else {
             return false;
+
         }
+        return isMember;
     }
 
     public void print_sorted() {
