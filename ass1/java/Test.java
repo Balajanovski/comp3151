@@ -137,7 +137,9 @@ public class Test {
         long end_time = System.currentTimeMillis();
         System.out.println("\tMultiple inserts and deletes took: " + (end_time - start_time) + "ms");
 
-        // TODO: ASSERT!!!!!
+        var actual_values = array.get_values();
+        var expected_values = IntStream.range(1, N+1).filter(i -> i % 2 == 1).toArray();
+        assert(Arrays.equals(actual_values, expected_values));
     }
 
     public static void main(String[] args) throws InterruptedException {

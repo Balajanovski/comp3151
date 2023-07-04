@@ -1,9 +1,6 @@
 import java.util.Arrays;
 import java.util.concurrent.Semaphore;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Stream;
 
@@ -13,7 +10,6 @@ public class SortedArray {
 
     private final int N;
     private int[] values;
-    private AtomicInteger size;
 
     private ReadWriteLock[] region_locks;
 
@@ -22,7 +18,6 @@ public class SortedArray {
     public SortedArray(int N) {
         this.N = N;
         this.size_semaphore = new Semaphore(N);
-        this.size = new AtomicInteger(0);
         this.values = new int[N+2];
 
         this.region_locks = Stream.iterate(0, x->x+1)
@@ -79,17 +74,10 @@ public class SortedArray {
         for (int i = 0; i <= region_right; ++i) {
             this.region_locks[i].writeLock().unlock();
         }
-
-        // Update size
-        this.size.addAndGet(1);
-    }
-
-    public int get_size() {
-        return size.get();
     }
 
     public int[] get_values() {
-        return Arrays.copyOfRange(values, 1, N+1);
+        return Arrays.stream(values).filter(i -> (i != Integer.MAX_VALUE && i > 0)).toArray();
     }
 
     public void delete(int x) {
@@ -101,7 +89,6 @@ public class SortedArray {
         }
 
         this.size_semaphore.release();
-        this.size.addAndGet(-1);
     }
 
     public boolean member(int x) {
