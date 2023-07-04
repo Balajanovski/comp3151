@@ -1,4 +1,6 @@
 import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.Queue;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Lock;
@@ -8,6 +10,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Stream;
 
 public class SortedArray {
+    // -1 encodes a deleted member
+    // 0 encodes array padding
+
     private final int N;
     private int[] values;
     private AtomicInteger size;
@@ -29,8 +34,12 @@ public class SortedArray {
                 .limit(N+2)
                 .map(i -> new ReentrantLock())
                 .toArray(ReentrantLock[]::new);
+
         this.values[0] = Integer.MIN_VALUE;
         this.values[1] = Integer.MAX_VALUE;
+        for (int i = 2; i < N+2; ++i) {
+            this.values[i] = 0;
+        }
     }
 
     public void insert(int x) throws InterruptedException {
@@ -39,10 +48,6 @@ public class SortedArray {
         this.size_semaphore.acquire();
 
         //this.cleanup();
-
-        // Two phase solution
-        // Phase 1: Find insertion location (write locks) (Potentially look at ReadWriteUpdate lock)
-        // Phase 2: Lock remainder of array and insert (write locks)
 
         // Hand over hand locking
         int region_left = -1; // Value of -1 means that an insertion position has not been found
@@ -71,6 +76,7 @@ public class SortedArray {
         assert(region_left != -1);
 
         this.insert_region_locks[region_left-1].unlock();
+
 
         // Find right side of insertion region
         int region_right = -1;
@@ -151,9 +157,6 @@ public class SortedArray {
     }
 
     public boolean member(int x) {
-        // -1 encodes a deleted member
-        // 0 encodes array padding
-
         int x_index = find(x);
         if (x_index != -1) {
             this.swap_locks[x_index].unlock();
