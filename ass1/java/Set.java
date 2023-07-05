@@ -5,7 +5,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Stream;
 
-public class SortedArray {
+public class Set {
     private final int DELETED = -1;
     private final int PADDING = 0;
 
@@ -23,7 +23,7 @@ public class SortedArray {
 
     private Semaphore size_semaphore;
 
-    public SortedArray(int N) {
+    public Set(int N) {
         this.N = N;
         this.size_semaphore = new Semaphore(N);
         this.values = new int[N+2];

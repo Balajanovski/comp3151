@@ -6,7 +6,7 @@ public class Test {
     public static void test_single_thread() throws InterruptedException {
         System.out.println("Testing single threaded functionality...");
 
-        var array = new SortedArray(2);
+        var array = new Set(2);
         array.insert(10);
         array.insert(10);
         array.insert(12);
@@ -27,7 +27,7 @@ public class Test {
         int N = 20000;
         int search_range = N/num_threads;
 
-        var array = new SortedArray(N);
+        var array = new Set(N);
         for (int i = N; i >= 1; --i) {
             array.insert(i*2);
         }
@@ -66,7 +66,7 @@ public class Test {
         long start_time = System.currentTimeMillis();
 
         var threads = new ArrayList<Thread>();
-        var array = new SortedArray(N);
+        var array = new Set(N);
         for (int t = 0; t < num_threads; ++t) {
             int curr_t = t;
             var thread = new Thread(() -> {
@@ -105,7 +105,7 @@ public class Test {
         long start_time = System.currentTimeMillis();
 
         var threads = new ArrayList<Thread>();
-        var array = new SortedArray(num_threads*insert_range);
+        var array = new Set(num_threads*insert_range);
         for (int t = 0; t < num_threads; ++t) {
             int curr_t = t;
             var thread = new Thread(() -> {
