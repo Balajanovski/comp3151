@@ -105,20 +105,19 @@ public class Set {
         if (x_index != -1) {
             this.values[x_index] = -1;
             this.region_locks[x_index].writeLock().unlock();
+
+            this.size_semaphore.release();
+
+            var curr_num_holes = (double) this.num_holes.incrementAndGet();
+            var curr_uncompacted_size = (double) this.uncompacted_size.get();
+            var hole_proportion = curr_num_holes / curr_uncompacted_size;
+
+            // These constants were picked arbitrarily
+            if (hole_proportion > this.MIN_HOLE_PERCENT_CLEANUP && curr_uncompacted_size > this.MIN_ARRAY_SIZE_CLEANUP) {
+                // There is a specific interleaving where multiple cleanups can occur
+                cleanup();
+            }
         }
-
-        this.size_semaphore.release();
-
-        var curr_num_holes = (double) this.num_holes.incrementAndGet();
-        var curr_uncompacted_size = (double) this.uncompacted_size.get();
-        var hole_proportion = curr_num_holes / curr_uncompacted_size;
-
-        // These constants were picked arbitrarily
-        if (hole_proportion > this.MIN_HOLE_PERCENT_CLEANUP && curr_uncompacted_size > this.MIN_ARRAY_SIZE_CLEANUP) {
-            // There is a specific interleaving where multiple cleanups can occur
-            cleanup();
-        }
-
     }
 
     public boolean member(int x) {
