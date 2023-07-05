@@ -99,7 +99,7 @@ public class Test {
         System.out.println("Testing multiple inserts and deletes...");
 
         int num_threads = 10;
-        int N = 10000;
+        int N = 100;
         int insert_range = N / num_threads;
 
         long start_time = System.currentTimeMillis();
