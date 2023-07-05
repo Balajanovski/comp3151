@@ -79,6 +79,8 @@ public class Set {
         }
         assert(region_right != -1);
 
+        boolean replaced_hole = (this.values[region_right] == DELETED);
+
         // Shift values
         for (int i = region_right; i >= region_left+1; --i) {
             this.values[i] = this.values[i-1];
@@ -90,7 +92,12 @@ public class Set {
             this.region_locks[i].writeLock().unlock();
         }
 
-        this.uncompacted_size.incrementAndGet();
+        if (!replaced_hole) {
+            this.uncompacted_size.incrementAndGet();
+        } else {
+            this.num_holes.decrementAndGet();
+        }
+
         this.cleanup_lock.readLock().unlock();
     }
 
