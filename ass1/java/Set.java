@@ -166,7 +166,7 @@ public class Set {
             }
         }
 
-        this.uncompacted_size.set(uncompacted_write_position-1);
+        this.uncompacted_size.set(uncompacted_write_position-2);
         this.num_holes.set(0);
 
         for (; uncompacted_write_position < N+2; ++uncompacted_write_position) {
