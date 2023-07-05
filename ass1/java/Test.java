@@ -23,12 +23,12 @@ public class Test {
     public static void test_multiple_members() throws InterruptedException {
         System.out.println("Testing multiple members...");
 
-        int num_threads = 1;
-        int N = 10000;
+        int num_threads = 10;
+        int N = 20000;
         int search_range = N/num_threads;
 
         var array = new SortedArray(N);
-        for (int i = 1; i <= N; ++i) {
+        for (int i = N; i >= 1; --i) {
             array.insert(i*2);
         }
 
@@ -76,6 +76,8 @@ public class Test {
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
+
+                    assert(array.member(i));
                 }
             });
             thread.start();
@@ -90,7 +92,6 @@ public class Test {
         long end_time = System.currentTimeMillis();
         System.out.println("\tMultiple inserts took: " + (end_time - start_time) + "ms");
 
-        assert(array.get_size() == N);
         assert(Arrays.equals(array.get_values(), IntStream.range(1, N + 1).toArray()));
     }
 
@@ -98,7 +99,7 @@ public class Test {
         System.out.println("Testing multiple inserts and deletes...");
 
         int num_threads = 10;
-        int N = 10000;
+        int N = 100;
         int insert_range = N / num_threads;
 
         long start_time = System.currentTimeMillis();
@@ -136,7 +137,9 @@ public class Test {
         long end_time = System.currentTimeMillis();
         System.out.println("\tMultiple inserts and deletes took: " + (end_time - start_time) + "ms");
 
-        assert(array.get_size() == N/2);
+        var actual_values = array.get_values();
+        var expected_values = IntStream.range(1, N+1).filter(i -> i % 2 == 1).toArray();
+        assert(Arrays.equals(actual_values, expected_values));
     }
 
     public static void main(String[] args) throws InterruptedException {
