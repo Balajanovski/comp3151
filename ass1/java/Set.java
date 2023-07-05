@@ -30,9 +30,9 @@ public class Set {
 
         this.region_locks = Stream.iterate(0, x->x+1)
                 .limit(N+2)
-                .map(i -> new ReentrantReadWriteLock())
+                .map(i -> new ReentrantReadWriteLock(true))
                 .toArray(ReentrantReadWriteLock[]::new);
-        this.cleanup_lock = new ReentrantReadWriteLock();
+        this.cleanup_lock = new ReentrantReadWriteLock(true);
 
         this.values[0] = Integer.MIN_VALUE;
         this.values[1] = Integer.MAX_VALUE;
