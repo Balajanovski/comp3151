@@ -1,6 +1,6 @@
 #define N 10
 
-int array[N];
+int array[N] = {1,3,5,7,9,10,13,15,18,0};
 bool locks[N];
 int insertPos = -1;
 int binaryPos = 0;
@@ -8,21 +8,29 @@ bool searchStarted = 0;
 
 init {
     // Init array
-    int i = 0;
-    byte randint = 0;
+    //int i = 0;
+    //byte randint = 0;
+    //select(i : 1..8)      //targets from 1-20
+    //run binarySearch(i); 
+    //select(i : 1..8)       //targets from 1-20
+    //run insert(i); 
+    do
+    :: run binarySearch(1);
+        break;
+    :: run binarySearch(15);
+        break;
+    :: run binarySearch(9);
+        break;
+    od;
 
-
-    for (i: 0 .. N-2) { //fill array 
-        select (randint : randint+1 .. randint+3);
-        array[i] = randint;
-        locks[i] = false;
-    }
-    array[N-1] = 0;         //last element 0
-    locks[N-1] = false;
-    select(i : 1..20)      //targets from 1-20
-    run binarySearch(i); 
-    select(i : 1..20)       //targets from 1-20
-    run insert(i); 
+    do
+    :: run insert(2);
+        break;
+    :: run insert(19);
+        break;
+    :: run insert(10);
+        break;
+    od;
 }
 
 proctype insert(byte target) {
@@ -37,32 +45,39 @@ L1: atomic {
     fi
     };
     int i;
-    for (i : 1 .. N+1){
-L2:         if 
+    for (i : 0 .. N+1) {
+L2:     if 
         :: locks[i] == false ->
             insertPos = i;
-            if 
-            :: array[i] == target -> //duplicate
-                break; // return todo
-            :: array[i] > target ->
-                region_left = i;
-                break;
-            fi
-        :: else -> goto L2;
-        fi
-    }
+        :: i == 0 -> skip;
+        :: else -> 
+            goto L2;
+        fi;
+        if 
+        :: array[i] == target -> //duplicate
+            break;
+        :: array[i] > target ->
+            region_left = i;
+            break;
+        :: array[i] == 0 -> //hole found
+            region_left = i;
+            array[i] = target
+            goto end;
+        fi;
+    };
     if 
     :: region_left == -1 -> 
         goto end;
-        // array full
+        // array full or duplicate
     fi 
     for (i : region_left + 1 .. N + 1) {
-L3:         if 
+L3:     if 
         :: locks[i] == false ->
             insertPos = i;
             if 
             :: array[i] == 0 ->
                 region_right = i;
+                break;
             fi
         :: else -> goto L3;
         fi
@@ -78,16 +93,17 @@ L3:         if
         :: i >= region_left + 1 -> 
             array[i] = array[i-1];
             i--;
+        :: else ->
+            break;
         od
         array[region_left] = target;
     }
-    locks[0] = false;
-end: skip;
+end:    locks[0] = false;
 }
 
 proctype binarySearch(byte target) {
     byte low = 1;
-    byte high = N-1;
+    byte high = N-2; // last element 0
     byte mid;
 bs1: atomic {
     if 
