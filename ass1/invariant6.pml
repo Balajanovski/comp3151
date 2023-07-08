@@ -98,7 +98,7 @@ L3:     atomic {
         :: else ->
             break;
         od
-        expData[region_left-1] = target;
+        expData[region_left] = target;
     }
     i = 0;
     for (i : 0 .. region_right) {
