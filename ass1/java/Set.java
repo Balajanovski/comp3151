@@ -25,7 +25,7 @@ public class Set {
 
     public Set(int N) {
         this.N = N;
-        this.size_semaphore = new Semaphore(N);
+        this.size_semaphore = new Semaphore(N, true);
         this.values = new int[N+2];
 
         this.region_locks = Stream.iterate(0, x->x+1)
