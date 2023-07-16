@@ -149,7 +149,7 @@ bs1: atomic {
     locks[low-1] = false;
 }
 
-ltl inv1 {
+ltl inv {
     [](
         (binaryPos > insertPos && searchStarted) 
         || !searchStarted

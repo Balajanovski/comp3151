@@ -61,7 +61,7 @@ bs2: atomic {
     writelocks[mid] = false
 }
 
-ltl inv4 {
+ltl inv {
     []!(
         deletePID[1] == deletePID[2]
     ) 
