@@ -89,7 +89,7 @@ L4:     insertPID[_pid] = -_pid;
         locks[0] = false;
 }
 
-ltl inv3 {
+ltl inv {
     []!(
         insertPID[1] == insertPID[2]
     ) 
