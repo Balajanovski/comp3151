@@ -1,33 +1,34 @@
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
 import java.util.stream.IntStream;
 
 public class Test {
-    public static void test_single_thread() throws InterruptedException {
+    public static void test_single_thread(ISetFactory set_factory) throws InterruptedException {
         System.out.println("Testing single threaded functionality...");
 
-        var array = new Set(2);
-        array.insert(10);
-        array.insert(10);
-        array.insert(12);
-        assert(array.member(10));
-        assert(!array.member(9));
-        assert(!array.member(11));
-        assert(array.member(12));
+        var set = set_factory.construct(2);
+        set.insert(10);
+        set.insert(10);
+        set.insert(12);
+        assert(set.member(10));
+        assert(!set.member(9));
+        assert(!set.member(11));
+        assert(set.member(12));
 
-        array.delete(10);
-        assert(!array.member(10));
-        assert(array.member(12));
+        set.delete(10);
+        assert(!set.member(10));
+        assert(set.member(12));
     }
 
-    public static void test_multiple_members() throws InterruptedException {
+    public static void test_multiple_members(ISetFactory set_factory) throws InterruptedException {
         System.out.println("Testing multiple members...");
 
         int num_threads = 10;
         int N = 20000;
         int search_range = N/num_threads;
 
-        var array = new Set(N);
+        var array = set_factory.construct(N);
         for (int i = N; i >= 1; --i) {
             array.insert(i*2);
         }
@@ -56,7 +57,7 @@ public class Test {
         System.out.println("\tMultiple members took: " + (end_time - start_time) + "ms");
     }
 
-    public static void test_multiple_inserts() throws InterruptedException {
+    public static void test_multiple_inserts(ISetFactory set_factory) throws InterruptedException {
         System.out.println("Testing multiple inserts...");
 
         int num_threads = 10;
@@ -66,7 +67,7 @@ public class Test {
         long start_time = System.currentTimeMillis();
 
         var threads = new ArrayList<Thread>();
-        var array = new Set(N);
+        var array = set_factory.construct(N);
         for (int t = 0; t < num_threads; ++t) {
             int curr_t = t;
             var thread = new Thread(() -> {
@@ -95,7 +96,7 @@ public class Test {
         assert(Arrays.equals(array.get_values(), IntStream.range(1, N + 1).toArray()));
     }
 
-    public static void test_multiple_inserts_and_deletes() throws InterruptedException {
+    public static void test_multiple_inserts_and_deletes(ISetFactory set_factory) throws InterruptedException {
         System.out.println("Testing multiple inserts and deletes...");
 
         int num_threads = 10;
@@ -105,7 +106,7 @@ public class Test {
         long start_time = System.currentTimeMillis();
 
         var threads = new ArrayList<Thread>();
-        var array = new Set(num_threads*insert_range);
+        var array = set_factory.construct(N);
         for (int t = 0; t < num_threads; ++t) {
             int curr_t = t;
             var thread = new Thread(() -> {
@@ -143,9 +144,15 @@ public class Test {
     }
 
     public static void main(String[] args) throws InterruptedException {
-        test_single_thread();
-        test_multiple_members();
-        test_multiple_inserts();
-        test_multiple_inserts_and_deletes();
+        var set_factories = List.<ISetFactory>of(new ConcurrentSetFactory(), new NaiveSetFactory());
+
+        for (var factory : set_factories) {
+            System.out.println("\n=-=-= Testing " + factory.get_name());
+
+            //test_single_thread(factory);
+            test_multiple_members(factory);
+            test_multiple_inserts(factory);
+            test_multiple_inserts_and_deletes(factory);
+        }
     }
 }
