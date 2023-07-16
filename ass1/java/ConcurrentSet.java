@@ -5,7 +5,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Stream;
 
-public class Set {
+public class ConcurrentSet implements ISet {
     private final int DELETED = -1;
     private final int PADDING = 0;
 
@@ -23,7 +23,7 @@ public class Set {
 
     private Semaphore size_semaphore;
 
-    public Set(int N) {
+    public ConcurrentSet(int N) {
         this.N = N;
         this.size_semaphore = new Semaphore(N, true);
         this.values = new int[N+2];
@@ -102,6 +102,7 @@ public class Set {
     }
 
     public int[] get_values() {
+        // Not thread-safe but only used for testing
         return Arrays.stream(values).filter(i -> (i != Integer.MAX_VALUE && i > 0)).toArray();
     }
 
@@ -133,6 +134,8 @@ public class Set {
     }
 
     public void print_sorted() {
+        this.cleanup_lock.readLock().lock();
+
         // Hand over hand locking to
         // prevent any inserts from modifying
         // past the read head
@@ -142,6 +145,7 @@ public class Set {
             if (values[i] == Integer.MAX_VALUE) {
                 this.region_locks[i-1].readLock().unlock();
                 this.region_locks[i].readLock().unlock();
+                this.cleanup_lock.readLock().unlock();
                 return;
             }
 
@@ -152,6 +156,8 @@ public class Set {
             this.region_locks[i-1].readLock().unlock();
         }
         this.region_locks[N+1].readLock().unlock();
+
+        this.cleanup_lock.readLock().unlock();
     }
 
     public void cleanup() {
