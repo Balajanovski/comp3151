@@ -5,7 +5,7 @@ import java.util.stream.IntStream;
 
 public class Test {
     public static void test_single_thread(ISetFactory set_factory) throws InterruptedException {
-        System.out.println("Testing single threaded functionality...");
+        System.out.println("Testing basic functionality in a single thread...");
 
         var set = set_factory.construct(2);
         set.insert(10);
@@ -149,7 +149,7 @@ public class Test {
         for (var factory : set_factories) {
             System.out.println("\n=-=-= Testing " + factory.get_name());
 
-            //test_single_thread(factory);
+            test_single_thread(factory);
             test_multiple_members(factory);
             test_multiple_inserts(factory);
             test_multiple_inserts_and_deletes(factory);
