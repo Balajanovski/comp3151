@@ -1,22 +1,26 @@
 defmodule Philosopher do
-  defstruct name: "", neighbor_pids: [], neighbor_forks: [], held_forks: [], clean_forks: [], promised_forks: []
+  defstruct name: "",
+            neighbor_pids: [],
+            neighbor_forks: [],
+            held_forks: [],
+            clean_forks: [],
+            promised_forks: []
 
   # Constructor
 
-  def new_philosopher(name, neighbor_forks, held_forks)
+  def new_philosopher(name, neighbor_forks, held_forks) do
     receive do
       {:start, neighbor_pids} ->
         spawn_link(fn -> randomly_change_action(self()) end)
+
         state = %Philosopher{
           name: name,
           neighbor_forks: neighbor_forks,
           held_forks: held_forks,
-          neighbor_pids: neighbor_pids,
+          neighbor_pids: neighbor_pids
         }
-        case Enum.random(0..1) do
-          0 -> thinking(state)
-          1 -> waiting_to_eat(state)
-        end
+
+        thinking(state)
     end
   end
 
@@ -27,7 +31,9 @@ defmodule Philosopher do
     IO.puts("#{name} is thinking.")
 
     receive do
-      {:change_action} -> waiting_to_eat(state)
+      {:change_action} ->
+        waiting_to_eat(state)
+
       {:fork_request, requester_pid, fork_id} ->
         if fork_neighbor?(fork_id, state) do
           if fork_clean?(fork_id, state) do
@@ -50,6 +56,7 @@ defmodule Philosopher do
     if can_eat?(state) do
       eating(state)
     end
+
     receive do
       {:fork_request, requester_pid, fork_id} ->
         if fork_neighbor?(fork_id, state) do
@@ -61,16 +68,23 @@ defmodule Philosopher do
             wait_for_forks(state)
           end
         end
-      {:fork_response, sender_pid, fork_id} ->
+
+      {:fork_response, fork_id} ->
         %{name: name, held_forks: held_forks, clean_forks: clean_forks} = state
         IO.puts("#{name} gets a fork.")
-        wait_for_forks(%{state | held_forks: [held_forks | fork_id], clean_forks: [clean_forks | fork_id]})
+
+        wait_for_forks(%{
+          state
+          | held_forks: [held_forks | fork_id],
+            clean_forks: [clean_forks | fork_id]
+        })
     end
   end
 
   defp eating(state) do
     %{name: name} = state
     IO.puts("#{name} is eating.")
+
     receive do
       {:change_action} ->
         state = give_promised_forks(state)
@@ -85,9 +99,9 @@ defmodule Philosopher do
     %{neighbor_pids: neighbor_pids} = state
     missing = missing_forks(state)
 
-    Enum.each(neighbor_pids, fn(neighbor_pid) ->
-      Enum.each(missing, fn(missing_fork) ->
-        request_fork(neighbor_pid, missing)
+    Enum.each(neighbor_pids, fn neighbor_pid ->
+      Enum.each(missing, fn missing_fork ->
+        request_fork(neighbor_pid, missing_fork)
       end)
     end)
   end
@@ -106,11 +120,27 @@ defmodule Philosopher do
   end
 
   defp give_promised_forks(state) do
-    %{promised_forks: promised_forks} = state
-    Enum.each(promised_forks, fn({requester_pid, fork_id}) ->
-      state = give_fork(requester_pid, fork_id, state)
-    end)
-    %{state | promised_forks: []}
+    %{
+      name: name,
+      promised_forks: promised_forks,
+      held_forks: held_forks,
+      clean_forks: clean_forks
+    } = state
+
+    given_fork_ids =
+      Enum.each(promised_forks, fn {requester_pid, fork_id} ->
+        IO.puts("#{name} gives a promised fork.")
+        send(requester_pid, {:fork_response, fork_id})
+
+        fork_id
+      end)
+
+    %{
+      state
+      | promised_forks: [],
+        held_forks: held_forks -- given_fork_ids,
+        clean_forks: clean_forks -- given_fork_ids
+    }
   end
 
   defp promise_fork(requester_pid, fork_id, state) do
@@ -123,7 +153,12 @@ defmodule Philosopher do
     %{name: name, held_forks: held_forks, clean_forks: clean_forks} = state
     IO.puts("#{name} gives a fork.")
     send(requester_pid, {:fork_response, fork_id})
-    %{state | held_forks: List.delete(held_forks, fork_id), clean_forks: List.delete(clean_forks, fork_id)}
+
+    %{
+      state
+      | held_forks: List.delete(held_forks, fork_id),
+        clean_forks: List.delete(clean_forks, fork_id)
+    }
   end
 
   defp fork_clean?(fork_id, state) do
@@ -137,14 +172,13 @@ defmodule Philosopher do
   end
 
   defp can_eat?(state) do
-    %{held_forks: held_forks} = state
     length(missing_forks(state)) == 0
   end
 
-  # Make it so that the philosophers' desires randomly change
+  # Make it so that the philosophers' actions randomly change
 
-  defp randomly_change_action(pid)
-    Process.sleep(Enun.random(1..5) * 1000)
+  defp randomly_change_action(pid) do
+    Process.sleep(Enum.random(1..5) * 1000)
     send(pid, {:change_action})
     randomly_change_action(pid)
   end

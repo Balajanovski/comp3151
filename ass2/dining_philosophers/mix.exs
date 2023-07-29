@@ -8,7 +8,7 @@ defmodule DiningPhilosophers.MixProject do
       elixir: "~> 1.9",
       start_permanent: Mix.env() == :prod,
       escript: escript(),
-      deps: deps(),
+      deps: deps()
     ]
   end
 
