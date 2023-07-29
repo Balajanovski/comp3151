@@ -1,5 +1,15 @@
 defmodule DiningPhilosophers.CLI do
+  use Application
+
   def main(_) do
+    begin_simulation()
+  end
+
+  def start(_type, _args) do
+    begin_simulation()
+  end
+
+  defp begin_simulation() do
     IO.puts("Starting dining philosophers...")
 
     pid1 = spawn_link(fn -> Philosopher.new_philosopher("Nietzsche", [0, 4], [0, 4]) end)

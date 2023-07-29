@@ -11,7 +11,8 @@ defmodule Philosopher do
   def new_philosopher(name, neighbor_forks, held_forks) do
     receive do
       {:start, neighbor_pids} ->
-        spawn_link(fn -> randomly_change_action(self()) end)
+        curr_pid = self()
+        spawn_link(fn -> randomly_change_action(curr_pid) end)
 
         state = %Philosopher{
           name: name,
@@ -28,7 +29,7 @@ defmodule Philosopher do
 
   defp thinking(state) do
     %{name: name} = state
-    IO.puts("#{name} is thinking.")
+    IO.puts("** #{name} is thinking.")
 
     receive do
       {:change_action} ->
@@ -75,15 +76,15 @@ defmodule Philosopher do
 
         wait_for_forks(%{
           state
-          | held_forks: [held_forks | fork_id],
-            clean_forks: [clean_forks | fork_id]
+          | held_forks: [fork_id | held_forks],
+            clean_forks: [fork_id | clean_forks]
         })
     end
   end
 
   defp eating(state) do
     %{name: name} = state
-    IO.puts("#{name} is eating.")
+    IO.puts("** #{name} is eating.")
 
     receive do
       {:change_action} ->
@@ -128,7 +129,7 @@ defmodule Philosopher do
     } = state
 
     given_fork_ids =
-      Enum.each(promised_forks, fn {requester_pid, fork_id} ->
+      Enum.map(promised_forks, fn {requester_pid, fork_id} ->
         IO.puts("#{name} gives a promised fork.")
         send(requester_pid, {:fork_response, fork_id})
 
