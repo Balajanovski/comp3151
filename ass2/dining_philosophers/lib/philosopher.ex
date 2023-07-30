@@ -21,7 +21,10 @@ defmodule Philosopher do
           neighbor_pids: neighbor_pids
         }
 
-        thinking(state)
+        case Enum.random(0..1) do
+          0 -> thinking(state)
+          1 -> waiting_to_eat(state)
+        end
     end
   end
 
